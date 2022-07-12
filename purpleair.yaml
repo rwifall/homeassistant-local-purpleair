@@ -143,7 +143,7 @@ template:
         # The temperature sensor has noise that appears as drops in temperature,
         # this processing step seems to clean it up pretty well.
         state: >
-          {% set data = state_attr('sensor.purpleair_temp', 'history') | default([], True) %}
+          {% set data = state_attr('sensor.purpleair_temperature', 'history') | default([], True) %}
           {% set current = state_attr('sensor.purpleair', 'current_temp_f') - 8 %}
           {% set middle_readings = ((data + [current]) | sort)[10:-10] %}
           {% if middle_readings | length %}
@@ -156,9 +156,12 @@ template:
           raw: "{{ state_attr('sensor.purpleair','current_temp_f') }}"
           # Cache about 15 minutes worth of readings for a max
           history: >
-            {% set data = state_attr('sensor.purpleair_temp', 'history') | default([], True) %}
+            {% set data = state_attr('sensor.purpleair_temperature', 'history') | default([], True) %}
             {% set current = state_attr('sensor.purpleair', 'current_temp_f') - 8 %}
-            {{ (data[-60:] + [current]) }}
+            {% set datalength = data | length %}
+            {% set sizelist = [datalength] + [60] %}
+            {% set sizemin = sizelist | min %}
+            {{ (data[-sizemin:] + [current]) }}             
 
   - sensor:
       # Includes offset, but no attempt to smooth the data.
@@ -187,8 +190,11 @@ template:
           history: >
             {% set data = state_attr('sensor.purpleair_humidity', 'history') | default([], True) %}
             {% set current = state_attr('sensor.purpleair', 'current_humidity') + 4 %}
-            {{ (data[-20:] + [current]) }}
-
+            {% set datalength = data | length %}
+            {% set sizelist = [datalength] + [20] %}
+            {% set sizemin = sizelist | min %}
+            {{ (data[-sizemin:] + [current]) }}             
+            
   - sensor:
       # Includes offset, but no attempt to smooth the data.
       - unique_id: "purpleair_humidity_raw"
@@ -213,7 +219,7 @@ template:
         state: >
           {% set data = state_attr('sensor.purpleair_pressure', 'history') | default([], True) %}
           {% set current = state_attr('sensor.purpleair','pressure') %}
-          {% set tc = (states('sensor.purpleair_temp') | float - 32) * 5 / 9 %}
+          {% set tc = (states('sensor.purpleair_temperature') | float - 32) * 5 / 9 %}
           {% set hm = 376 %}
           {% set middle_readings = ((data + [current]) | sort)[10:-10] %}
           {% if middle_readings | length %}
@@ -227,7 +233,10 @@ template:
           history: >
             {% set data = state_attr('sensor.purpleair_pressure', 'history') | default([], True) %}
             {% set current = state_attr('sensor.purpleair', 'pressure') %}
-            {{ (data[-60:] + [current]) }}
+            {% set datalength = data | length %}
+            {% set sizelist = [datalength] + [60] %}
+            {% set sizemin = sizelist | min %}
+            {{ (data[-sizemin:] + [current]) }}             
         unit_of_measurement: "mbar"
 
   - sensor:
@@ -244,11 +253,11 @@ template:
         device_class: temperature
         # There is a built-in dewpoint, but it appears to be computed from the unadjusted values, formula from https://en.wikipedia.org/wiki/Dew_point
         state: >
-          {% if not is_number(states('sensor.purpleair_humidity')) or not is_number(states('sensor.purpleair_temp')) %}
+          {% if not is_number(states('sensor.purpleair_humidity')) or not is_number(states('sensor.purpleair_temperature')) %}
             unknown
           {% else %}
             {% set rh = states('sensor.purpleair_humidity') | float %}
-            {% set tc = (states('sensor.purpleair_temp') | float - 32) * 5 / 9 %}
+            {% set tc = (states('sensor.purpleair_temperature') | float - 32) * 5 / 9 %}
             {% set b = 18.678 %}
             {% set c = 257.14 %}
             {% set lam = ((rh/100) | log) + ((b * tc) / (c + tc)) %}
@@ -293,11 +302,11 @@ template:
       # pulled. Anyway, this is the one I've selected to use for the AQI value.
       # This code attempts to smooth the value by looking at the last ten minutes of readings,
       # throwing out the 5 highest and 5 lowest, and averaging the remaining.
-      - unique_id: "purpleair_pm25_ugm3"
+      - unique_id: "purpleair_pm2_5_ug_m3"
         name: "PurpleAir PM2.5 µg/m³"
         device_class: pm25
         state: >
-          {% set data = state_attr('sensor.purpleair_pm25_ugm3', 'history') | default([], True) %}
+          {% set data = state_attr('sensor.purpleair_pm2_5_ug_m3', 'history') | default([], True) %}
           {% set current = (state_attr('sensor.purpleair','pm2_5_atm') + state_attr('sensor.purpleair','pm2_5_atm_b')) / 2 %}
           {% set middle_readings = ((data + [current]) | sort)[5:-5] %}
           {% if middle_readings | length %}
@@ -310,9 +319,12 @@ template:
           raw: "{{ (state_attr('sensor.purpleair','pm2_5_atm') + state_attr('sensor.purpleair','pm2_5_atm_b')) / 2 }}"
           # Cache about 10 minutes worth of readings for a max
           history: >
-            {% set data = state_attr('sensor.purpleair_pm25_ugm3', 'history') | default([], True) %}
+            {% set data = state_attr('sensor.purpleair_pm2_5_ug_m3', 'history') | default([], True) %}
             {% set current = (state_attr('sensor.purpleair','pm2_5_atm') + state_attr('sensor.purpleair','pm2_5_atm_b')) / 2 %}
-            {{ (data[-40:] + [current]) }}
+            {% set datalength = data | length %}
+            {% set sizelist = [datalength] + [40] %}
+            {% set sizemin = sizelist | min %}
+            {{ (data[-sizemin:] + [current]) }}             
 
   - sensor:
       # Attempt at implementing: https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=349513
